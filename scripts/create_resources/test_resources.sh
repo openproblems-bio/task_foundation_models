@@ -6,48 +6,38 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 # ensure that the command below is run from the root of the repository
 cd "$REPO_ROOT"
 
-# # remove this when you have implemented the script
-# echo "TODO: replace the commands in this script with the sequence of components that you need to run to generate test_resources."
-# echo "  Inside this script, you will need to place commands to generate example files for each of the 'src/api/file_*.yaml' files."
-# exit 1
-
 set -e
 
-RAW_DATA=resources_test/common
-DATASET_DIR=resources_test/task_template
+OUT_DIR=resources_test/task_foundation_models/results
 
-mkdir -p $DATASET_DIR
+TASKS=(
+  "task_label_projection"
+  "task_batch_integration"
+)
 
-# process dataset
-viash run src/data_processors/process_dataset/config.vsh.yaml -- \
-  --input $RAW_DATA/cxg_mouse_pancreas_atlas/dataset.h5ad \
-  --output_train $DATASET_DIR/cxg_mouse_pancreas_atlas/train.h5ad \
-  --output_test $DATASET_DIR/cxg_mouse_pancreas_atlas/test.h5ad \
-  --output_solution $DATASET_DIR/cxg_mouse_pancreas_atlas/solution.h5ad
+if [ -d "$OUT_DIR" ]; then
+  echo "Removing existing directory '$OUT_DIR'"
+  rm -rf "$OUT_DIR"
+fi
 
-# run one method
-viash run src/methods/logistic_regression/config.vsh.yaml -- \
-    --input_train $DATASET_DIR/cxg_mouse_pancreas_atlas/train.h5ad \
-    --input_test $DATASET_DIR/cxg_mouse_pancreas_atlas/test.h5ad \
-    --output $DATASET_DIR/cxg_mouse_pancreas_atlas/prediction.h5ad
+mkdir -p "$OUT_DIR"
 
-# run one metric
-viash run src/metrics/accuracy/config.vsh.yaml -- \
-    --input_prediction $DATASET_DIR/cxg_mouse_pancreas_atlas/prediction.h5ad \
-    --input_solution $DATASET_DIR/cxg_mouse_pancreas_atlas/solution.h5ad \
-    --output $DATASET_DIR/cxg_mouse_pancreas_atlas/score.h5ad
+for TASK in "${TASKS[@]}"; do
+  BASE_DIR="s3://openproblems-data/resources/$TASK/results"
+  
+  # find subdir in bucket with latest date which has a 'task_info.yaml' file
+  DATE=$(aws s3 ls "$BASE_DIR/" --recursive --no-sign-request | awk '{print $4}' | grep 'task_info.yaml' | sort -r | head -n 1 | sed 's#.*/run_\(.*\)/[^/]*$#\1#')
+  
+  INPUT_DIR="$BASE_DIR/run_$DATE"
+  TASK_STRIP_PREFIX=$(echo $TASK | sed 's/task_//')
+  OUTPUT_DIR="$OUT_DIR/$TASK_STRIP_PREFIX"
 
-# write manual state.yaml. this is not actually necessary but you never know it might be useful
-cat > $DATASET_DIR/cxg_mouse_pancreas_atlas/state.yaml << HERE
-id: cxg_mouse_pancreas_atlas
-train: !file train.h5ad
-test: !file test.h5ad
-solution: !file solution.h5ad
-prediction: !file prediction.h5ad
-score: !file score.h5ad
-HERE
+  echo "Syncing '$INPUT_DIR' to '$OUTPUT_DIR'"
+  aws s3 sync "$INPUT_DIR" "$OUTPUT_DIR" --delete --no-sign-request
+done
 
 # only run this if you have access to the openproblems-data bucket
 aws s3 sync --profile op \
-  "$DATASET_DIR" s3://openproblems-data/resources_test/task_template \
+  "resources_test/task_foundation_models" \
+  s3://openproblems-data/resources_test/task_foundation_models \
   --delete --dryrun
