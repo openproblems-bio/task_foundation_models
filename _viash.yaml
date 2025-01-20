@@ -1,7 +1,7 @@
 viash_version: 0.9.0
 # Step 1: Change the name of the task.
 # example: task_name_of_this_task
-name: task_template
+name: task_foundation_models
 organization: openproblems-bio
 version: build_main
 license: MIT
@@ -9,8 +9,8 @@ license: MIT
 keywords: [single-cell, openproblems, benchmark]
 # Step 3: Update the `task_template` to the name of the task from step 1.
 links:
-  issue_tracker: https://github.com/openproblems-bio/task_template/issues
-  repository: https://github.com/openproblems-bio/task_template
+  issue_tracker: https://github.com/openproblems-bio/task_foundation_models/issues
+  repository: https://github.com/openproblems-bio/task_foundation_models
   docker_registry: ghcr.io
 # Step 4: Update the label, summary and description.
 # A unique, human-readable, short label. Used for creating summary tables and visualisations.
@@ -36,11 +36,8 @@ info:
   # Step 5: Replace the task_template to the name of the task.
   test_resources:
     - type: s3
-      path: s3://openproblems-data/resources_test/common/
-      dest: resources_test/common
-    - type: s3
-      path: s3://openproblems-data/resources_test/task_template/
-      dest: resources_test/task_template
+      path: s3://openproblems-data/resources_test/task_foundation_models/
+      dest: resources_test/task_foundation_models
 # Step 6: Update the authors of the task.
 authors:
   # Full name of the author, usually in the name of FirstName MiddleName LastName.
@@ -63,8 +60,7 @@ authors:
 config_mods: |
   .runners[.type == "nextflow"].config.labels := { lowmem : "memory = 20.Gb", midmem : "memory = 50.Gb", highmem : "memory = 100.Gb", lowcpu : "cpus = 5", midcpu : "cpus = 15", highcpu : "cpus = 30", lowtime : "time = 1.h", midtime : "time = 4.h", hightime : "time = 8.h", veryhightime : "time = 24.h" }
 repositories:
-  - name: core
+  - name: openproblems
     type: github
-    repo: openproblems-bio/core
+    repo: openproblems-bio/openproblems
     tag: build/main
-    path: viash/core
